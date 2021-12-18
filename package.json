@@ -1,0 +1,12 @@
+{
+  "name": "distributed-nginx",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "NGINX_DIST=test/dist1 node index.js"
+  },
+  "dependencies": {
+    "redis": "^4.0.1"
+  }
+}

@@ -1,0 +1,16 @@
+
+stages:
+ - docker-build
+
+docker-build:
+  image: docker.io/library/docker:latest
+  stage: docker-build
+  script:
+    - cd 16/stretch
+    - docker build . -t registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
+    - docker login registry.hand-china.com --password ${DOCKER_PASSWORD} --username ${DOCKER_USER}
+    - docker push registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
+  only:
+    - master
+  tags:
+    - docker
