@@ -207,12 +207,7 @@ const getCurrentPackageMap = (nginxDist) => {
 
     const microConfig = {};
 
-    let NginxMicroConfig = `
-    location /test-hello/ {
-      default_type    text/plain;
-      return 200 "服务正在升级，请稍后再试……";
-   }
-    `;
+    let NginxMicroConfig = ``;
 
     Object.keys(onlineNginxClientMap).forEach(nginxIp => {
       const _microConfig = onlineNginxClientMap[nginxIp];
