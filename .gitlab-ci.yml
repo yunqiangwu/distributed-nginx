@@ -1,4 +1,3 @@
-
 stages:
  - docker-build
 
@@ -12,5 +11,5 @@ docker-build:
     - docker push registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
   only:
     - master
-  tags:
-    - docker
+#   tags:
+#     - docker
