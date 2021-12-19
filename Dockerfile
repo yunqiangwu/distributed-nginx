@@ -20,6 +20,7 @@ ENV NGINX_DIST /usr/share/nginx/html
 ENV NGINX_CONFIG_D_DIR /etc/nginx/conf.d/micro-config.d
 ENV S_REDIS_HOST redis
 ENV S_REDIS_PORT 6379
+ENV S_NAMESPACE hzero_front_
 
 COPY ["docker/nginx-config-d/default.conf","/etc/nginx/conf.d/default.conf"]
 COPY docker/docker-entrypoint.sh /

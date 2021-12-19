@@ -1,24 +1,26 @@
 const { exec } = require("child_process");
 const { existsSync, readdirSync, writeFileSync, mkdir, mkdirSync, unlinkSync } = require("fs");
 const { request } = require("http");
-const os=require("os");
+const os = require("os");
 const path = require("path");
 
 // test remove todo
-// process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
-// process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
+process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
+process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
+
+const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_'
 
 const getIp = () => {
-  const networkInterfaces=os.networkInterfaces();
+  const networkInterfaces = os.networkInterfaces();
 
   const allInterNames = Object.keys(networkInterfaces);
   let currentInterName = allInterNames.find(k => k === 'eth0');
 
-  if(!currentInterName) {
-    currentInterName= allInterNames[0]
+  if (!currentInterName) {
+    currentInterName = allInterNames[0]
   }
 
-  if(currentInterName) {
+  if (currentInterName) {
     const inter = networkInterfaces[currentInterName].find(item => item.family === 'IPv4');
     return inter.address;
   }
@@ -26,25 +28,25 @@ const getIp = () => {
   return '127.0.0.1';
 };
 
-const throttle = function(func, wait = 300) {
+const throttle = function (func, wait = 300) {
   var timeout, context, args, result;
-  
+
   // 上一次执行回调的时间戳
   var previous = 0;
-  
+
   let options;
   // 无传入参数时，初始化 options 为空对象
   if (!options) options = {};
 
-  var later = function() {
+  var later = function () {
     // 当设置 { leading: false } 时
     // 每次触发回调函数后设置 previous 为 0
     // 不然为当前时间
     previous = options.leading === false ? 0 : Date.now();
-    
+
     // 防止内存泄漏，置为 null 便于后面根据 !timeout 设置新的 timeout
     timeout = null;
-    
+
     // 执行函数
     result = func.apply(context, args);
     if (!timeout) context = args = null;
@@ -53,21 +55,21 @@ const throttle = function(func, wait = 300) {
   // 每次触发事件回调都执行这个函数
   // 函数内判断是否执行 func
   // func 才是我们业务层代码想要执行的函数
-  var throttled = function() {
-    
+  var throttled = function () {
+
     // 记录当前时间
     var now = Date.now();
-    
+
     // 第一次执行时（此时 previous 为 0，之后为上一次时间戳）
     // 并且设置了 { leading: false }（表示第一次回调不执行）
     // 此时设置 previous 为当前值，表示刚执行过，本次就不执行了
     if (!previous && options.leading === false) previous = now;
-    
+
     // 距离下次触发 func 还需要等待的时间
     var remaining = wait - (now - previous);
     context = this;
     args = arguments;
-    
+
     // 要么是到了间隔时间了，随即触发方法（remaining <= 0）
     // 要么是没有传入 {leading: false}，且第一次触发回调，即立即触发
     // 此时 previous 为 0，wait - (now - previous) 也满足 <= 0
@@ -75,15 +77,15 @@ const throttle = function(func, wait = 300) {
     if (remaining <= 0 || remaining > wait) {
       if (timeout) {
         clearTimeout(timeout);
-        
+
         // clearTimeout(timeout) 并不会把 timeout 设为 null
         // 手动设置，便于后续判断
         timeout = null;
       }
-      
+
       // 设置 previous 为当前时间
       previous = now;
-      
+
       // 执行 func 函数
       result = func.apply(context, args);
       if (!timeout) context = args = null;
@@ -98,7 +100,7 @@ const throttle = function(func, wait = 300) {
   };
 
   // 手动取消
-  throttled.cancel = function() {
+  throttled.cancel = function () {
     clearTimeout(timeout);
     previous = 0;
     timeout = context = args = null;
@@ -124,9 +126,9 @@ const getCurrentPackageMap = (nginxDist) => {
   const configMap = {};
 
   const mainPackageJsonFile = path.resolve(nginxDist, 'package.json');
-  if(existsSync(mainPackageJsonFile)){
+  if (existsSync(mainPackageJsonFile)) {
     const mainPackageInfo = require(mainPackageJsonFile);
-    if(mainPackageInfo.name) {
+    if (mainPackageInfo.name) {
       configMap[parsePackageName(mainPackageInfo.name)] = {
         packageInfo: mainPackageInfo,
         _isMainPackage: true
@@ -135,10 +137,10 @@ const getCurrentPackageMap = (nginxDist) => {
   }
 
   const mainPackagesDir = path.resolve(nginxDist, 'packages');
-  if(existsSync(mainPackagesDir)) {
+  if (existsSync(mainPackagesDir)) {
     readdirSync(mainPackagesDir).forEach(packageName => {
       const packageJsonFile = path.resolve(mainPackagesDir, packageName, 'package.json');
-      if(existsSync(packageJsonFile)) {
+      if (existsSync(packageJsonFile)) {
         const packageInfo = require(packageJsonFile);
         configMap[packageName] = {
           packageInfo: packageInfo,
@@ -146,7 +148,7 @@ const getCurrentPackageMap = (nginxDist) => {
         return;
       }
       const remoteEntryFile = path.resolve(mainPackagesDir, packageName, 'remoteEntry.js');
-      if(existsSync(remoteEntryFile)) {
+      if (existsSync(remoteEntryFile)) {
         configMap[packageName] = {
           packageInfo: {
             name: packageName
@@ -160,24 +162,24 @@ const getCurrentPackageMap = (nginxDist) => {
   return configMap;
 };
 
-(async () => {
+const useRedis = async () => {
 
   const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
   const NGINX_CONFIG_D_DIR = process.env.NGINX_CONFIG_D_DIR || `/etc/nginx/conf.d/micro-config.d`;
   const S_REDIS_HOST = process.env.S_REDIS_HOST || 'redis';
   const S_REDIS_PORT = process.env.S_S_REDIS_PORT || '6379';
 
-  if(!existsSync(NGINX_DIST)) {
+  if (!existsSync(NGINX_DIST)) {
     console.error(`dir \`${NGINX_DIST}\` not exist! maybe env 'NGINX_DIST' not set!`)
     process.exit(1);
     // NGINX_DIST = path.resolve(__dirname, 'test/dist1');
   }
   const packages_dir = path.resolve(NGINX_DIST, 'packages');
-  if(!existsSync(packages_dir)) {
+  if (!existsSync(packages_dir)) {
     mkdirSync(packages_dir);
   }
-  if(!existsSync(NGINX_CONFIG_D_DIR)) {
-    mkdirSync(NGINX_CONFIG_D_DIR, {recursive: true});
+  if (!existsSync(NGINX_CONFIG_D_DIR)) {
+    mkdirSync(NGINX_CONFIG_D_DIR, { recursive: true });
   }
 
   const currentIP = getIp();
@@ -190,14 +192,14 @@ const getCurrentPackageMap = (nginxDist) => {
   });
 
   const nginxReload = throttle((cb) => {
-    exec('nginx -s reload', (err, res ) => {
-      if(err) {
+    exec('nginx -s reload', (err, res) => {
+      if (err) {
         console.error(err);
       }
-      if(res) {
+      if (res) {
         console.log(res);
       }
-      if(cb) {
+      if (cb) {
         cb();
       }
     });
@@ -212,23 +214,23 @@ const getCurrentPackageMap = (nginxDist) => {
 
     Object.keys(onlineNginxClientMap).forEach(nginxIp => {
       const _microConfig = onlineNginxClientMap[nginxIp];
-      
-        Object.keys(_microConfig).forEach(packageName => {
-          if(nginxIp !== currentIP && microConfig[packageName]) {
-            return;
-          }
-          if(nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
-            return;
-          }
-          microConfig[packageName] = _microConfig[packageName].packageInfo;
-        });
 
-        Object.keys(_microConfig).forEach(packageName => {
-          if(nginxIp === currentIP) {
-            return;
-          }
-          if(_microConfig[packageName]._isMainPackage) {
-            NginxMicroConfig = `${NginxMicroConfig}
+      Object.keys(_microConfig).forEach(packageName => {
+        if (nginxIp !== currentIP && microConfig[packageName]) {
+          return;
+        }
+        if (nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
+          return;
+        }
+        microConfig[packageName] = _microConfig[packageName].packageInfo;
+      });
+
+      Object.keys(_microConfig).forEach(packageName => {
+        if (nginxIp === currentIP) {
+          return;
+        }
+        if (_microConfig[packageName]._isMainPackage) {
+          NginxMicroConfig = `${NginxMicroConfig}
             location /packages/${packageName}/ {
               proxy_pass http://${nginxIp}/;
               proxy_set_header host $host;
@@ -236,8 +238,8 @@ const getCurrentPackageMap = (nginxDist) => {
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             }
             `
-          } else {
-            NginxMicroConfig = `${NginxMicroConfig}
+        } else {
+          NginxMicroConfig = `${NginxMicroConfig}
             location /packages/${packageName}/ {
               proxy_pass http://${nginxIp};
               proxy_set_header host $host;
@@ -245,9 +247,9 @@ const getCurrentPackageMap = (nginxDist) => {
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             }
             `
-          }
+        }
 
-        });
+      });
     });
 
     const microConfigJsonFile = path.resolve(packages_dir, 'microConfig.json');
@@ -255,7 +257,7 @@ const getCurrentPackageMap = (nginxDist) => {
     writeFileSync(microConfigJsonFile, JSON.stringify(microConfig, null, 2));
     writeFileSync(NginxMicroConfigFile, NginxMicroConfig);
 
-    nginxReload(() =>{
+    nginxReload(() => {
       console.log(NginxMicroConfig);
     });
 
@@ -266,7 +268,7 @@ const getCurrentPackageMap = (nginxDist) => {
   const { createClient } = require('redis');
 
   const client = createClient({
-      url: `redis://${S_REDIS_HOST}:${S_REDIS_PORT}`
+    url: `redis://${S_REDIS_HOST}:${S_REDIS_PORT}`
   });
 
   client.on('error', (err) => console.log('Redis Client Error', err));
@@ -278,7 +280,7 @@ const getCurrentPackageMap = (nginxDist) => {
 
   const clean = async () => {
     console.log('beforeExit: cleaning');
-    await client.publish('offline', currentIP);
+    await client.publish(`${S_NAMESPACE}:offline`, currentIP);
     // console.log('beforeExit2: cleaning');
     // await Promise.all([onlineSubscriber.unsubscribe('online'), offLineSubscriber.unsubscribe('offline')]);
     // console.log('beforeExit3: cleaning');
@@ -291,7 +293,7 @@ const getCurrentPackageMap = (nginxDist) => {
     clean();
   });
 
-  await client.publish('online', JSON.stringify({
+  await client.publish(`${S_NAMESPACE}:online`, JSON.stringify({
     ip: currentIP,
     packageMap: currentPackageMap,
   }));
@@ -299,8 +301,8 @@ const getCurrentPackageMap = (nginxDist) => {
   const getInfoReplySubscriber = client.duplicate();
   await getInfoReplySubscriber.connect();
 
-  await getInfoReplySubscriber.subscribe(`get-info`, async (geter_ip) => {
-    await client.publish(`online-for-${geter_ip}`, JSON.stringify({
+  await getInfoReplySubscriber.subscribe(`${S_NAMESPACE}:get-info`, async (geter_ip) => {
+    await client.publish(`${S_NAMESPACE}:online-for-${geter_ip}`, JSON.stringify({
       ip: currentIP,
       packageMap: currentPackageMap,
     }));
@@ -308,35 +310,35 @@ const getCurrentPackageMap = (nginxDist) => {
 
   await Promise.all([offLineSubscriber.connect(), onlineSubscriber.connect()]);
 
-  await Promise.all([offLineSubscriber.subscribe('offline', (data) => {
+  await Promise.all([offLineSubscriber.subscribe(`${S_NAMESPACE}:offline`, (data) => {
     console.log(`offline: ${data}`)
     delete onlineNginxClientMap[data];
     refreshMicroConfig();
-  }), onlineSubscriber.subscribe(['online', `online-for-${currentIP}`], (data) => {
+  }), onlineSubscriber.subscribe([`${S_NAMESPACE}:online`, `${S_NAMESPACE}:online-for-${currentIP}`], (data) => {
     const msgObj = JSON.parse(data);
     onlineNginxClientMap[msgObj.ip] = msgObj.packageMap;
-    console.log(`online: ${msgObj.ip}`);
+    console.log(`${S_NAMESPACE}:online: ${msgObj.ip}`);
     refreshMicroConfig();
   })]);
 
-  await client.publish('get-info', currentIP);
+  await client.publish(`${S_NAMESPACE}:get-info`, currentIP);
 
   console.log(`readey!!!`);
 
-  while(true) {
+  while (true) {
 
     let hasUpdate = false;
     await Promise.all(Object.keys(onlineNginxClientMap).map(async (nginxIp) => {
       // 检查是否下线
-      if(nginxIp === currentIP) {
+      if (nginxIp === currentIP) {
         return;
       }
       const _microConfig = onlineNginxClientMap[nginxIp];
-      if(!_microConfig.lastCheckTime) {
+      if (!_microConfig.lastCheckTime) {
         _microConfig.lastCheckTime = 0;
       }
-      if(Date.now() - _microConfig.lastCheckTime > 60000) {
-        try{
+      if (Date.now() - _microConfig.lastCheckTime > 60000) {
+        try {
           await (new Promise((resolve, reject) => {
             const r = request(nginxIp, (request) => {
               resolve(request);
@@ -353,10 +355,54 @@ const getCurrentPackageMap = (nginxDist) => {
       }
     }));
 
-    if(hasUpdate) {
+    if (hasUpdate) {
       refreshMicroConfig();
     }
     await delay(1000);
   }
+
+};
+
+// const useMdns = async () => {
+//   const mdns = require('multicast-dns')();
+
+//   mdns.on('response', function(response) {
+//     response.answers.forEach((ans) => {
+//       console.log('name: ', ans.name);
+//       console.log('data: ', ans.data[0]);
+//     });
+
+//     // console.log('got a response packet:', response)
+//   })
   
-})();
+//   // mdns.on('query', function(query) {
+//   //   console.log('got a query packet:', query)
+//   // })
+  
+//   // // lets query for an A record for 'brunhilde.local'
+//   // mdns.query({
+//   //   questions:[{
+//   //     name: 'brunh33ilde.local',
+//   //     type: 'TXT'
+//   //   }]
+//   // })
+
+//   // mdns.respond({
+//   //   answers: [
+//   //   {
+//   //     name: 'brunh33ilde.local',
+//   //     // type: 'Adfsfs',
+//   //     type: 'TXT',
+//   //     data: Buffer.from([254, 0, 66])
+//   //   }]
+//   // });
+
+// } 
+
+useRedis();
+
+// if (process.env.USE_REDIS === 'true') {
+//   useRedis();
+// } else {
+//   useMdns();
+// }

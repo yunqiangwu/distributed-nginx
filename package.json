@@ -9,6 +9,7 @@
     "test": "npm run build && lerna exec -- ./test.sh"
   },
   "dependencies": {
+    "multicast-dns": "^7.2.4",
     "redis": "^4.0.1"
   },
   "devDependencies": {
