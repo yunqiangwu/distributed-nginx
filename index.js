@@ -1,5 +1,6 @@
 const { exec } = require("child_process");
 const { existsSync, readdirSync, writeFileSync, mkdir, mkdirSync, unlinkSync } = require("fs");
+const { request } = require("http");
 const os=require("os");
 const path = require("path");
 
@@ -323,7 +324,39 @@ const getCurrentPackageMap = (nginxDist) => {
   console.log(`readey!!!`);
 
   while(true) {
-    await delay(600000);
+
+    let hasUpdate = false;
+    await Promise.all(Object.keys(onlineNginxClientMap).map(async (nginxIp) => {
+      // 检查是否下线
+      if(nginxIp === currentIP) {
+        return;
+      }
+      const _microConfig = onlineNginxClientMap[nginxIp];
+      if(!_microConfig.lastCheckTime) {
+        _microConfig.lastCheckTime = 0;
+      }
+      if(Date.now() - _microConfig.lastCheckTime > 60000) {
+        try{
+          await (new Promise((resolve, reject) => {
+            const r = request(nginxIp, (request) => {
+              resolve(request);
+              console.log(`${nginxIp} is Alive`);
+            });
+            r.on('error', (err) => reject(err));
+            r.on('connect', (res) => resolve(res));
+          }));
+          _microConfig.lastCheckTime = Date.now();
+        } catch {
+          delete onlineNginxClientMap[nginxIp];
+          hasUpdate = true;
+        }
+      }
+    }));
+
+    if(hasUpdate) {
+      refreshMicroConfig();
+    }
+    await delay(1000);
   }
   
 })();
