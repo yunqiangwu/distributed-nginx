@@ -64,6 +64,7 @@ COPY dist /usr/share/nginx/html
 ```
 
 - dist/packages/m2/package.json
+
 ```
 {
     "name": "front-sub-service-name"
