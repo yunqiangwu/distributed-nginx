@@ -44,21 +44,21 @@ yarn run test
 
 ### S_NAMESPACE
 
-  含义：命名空间， 用于部署不同环境的nginx
+  含义：命名空间， 用于部署不同环境的nginx  
   默认值： hzero_front_
   > 注意：配置长度不能超过 200 字符
 
 ### USE_REDIS 
 
-  含义：是否使用 redis 协议， 默认使用 mdns 协议
+  含义：是否使用 redis 协议， 默认使用 mdns 协议  
   默认值： false
 
 ### S_REDIS_HOST
 
-  含义：redis 服务器的 ip 或者 host
+  含义：redis 服务器的 ip 或者 host  
   默认值： redis
 
 ### S_REDIS_PORT
 
-  含义：redis 服务器 的 端口
+  含义：redis 服务器 的 端口  
   默认值： 6379

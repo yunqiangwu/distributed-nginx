@@ -4,5 +4,5 @@
 
 # docker run -d -p 6379:6379 -ti --name redis redis
 
-docker run --rm -ti --name node-test --link=redis -v `pwd`:/app node:latest node /app/index.js
+docker run --rm -ti --name node-test -v `pwd`:/app node:latest node /app/index.js
 
