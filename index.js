@@ -1,14 +1,47 @@
 const { exec } = require("child_process");
 const { existsSync, readdirSync, writeFileSync, mkdir, mkdirSync, unlinkSync } = require("fs");
-const { request } = require("http");
+const http = require("http");
 const os = require("os");
+const { resolve } = require("path");
 const path = require("path");
 
 // test remove todo
 process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
 process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
 
-const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_'
+const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_';
+const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
+const NGINX_CONFIG_D_DIR = process.env.NGINX_CONFIG_D_DIR || `/etc/nginx/conf.d/micro-config.d`;
+
+const packages_dir = path.resolve(NGINX_DIST, 'packages');
+if (!existsSync(packages_dir)) {
+  mkdirSync(packages_dir);
+}
+
+const promisify = function promisify(fn, callbackErr = true, reverse = false) {
+  if ({}.toString.call(fn) !== '[object Function]') throw new TypeError('Only normal function can be promisified');
+  return function (...args) {
+    return new Promise((resolve, reject) => {
+      const callback = function (...args) {
+        if (!callbackErr) {
+          if (args.length === 1) return resolve(args[0]);
+          return resolve(args);
+        }
+        const err = args.shift();
+        const rest = args;
+        if ({}.toString.call(err) === '[object Error]') return reject(err);
+        if (rest.length === 1) return resolve(rest[0]);
+        return resolve(rest);
+      };
+      try {
+        if (reverse === true) fn.apply(null, [callback, ...args]);
+        else fn.apply(null, [...args, callback]);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+};
 
 const getIp = () => {
   const networkInterfaces = os.networkInterfaces();
@@ -162,10 +195,123 @@ const getCurrentPackageMap = (nginxDist) => {
   return configMap;
 };
 
+const nginxReload = throttle((cb) => {
+  exec('nginx -s reload', (err, res) => {
+    if (err) {
+      console.error(err);
+    }
+    if (res) {
+      console.log(res);
+    }
+    if (cb) {
+      cb();
+    }
+  });
+}, 1000);
+
+const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
+  console.log('refreshMicroConfig', JSON.stringify(onlineNginxClientMap, null, 2));
+
+  const microConfig = {};
+
+  let NginxMicroConfig = ``;
+
+  Object.keys(onlineNginxClientMap).forEach(nginxIp => {
+    const _microConfig = onlineNginxClientMap[nginxIp];
+
+    Object.keys(_microConfig).forEach(packageName => {
+      if (nginxIp !== currentIP && microConfig[packageName]) {
+        return;
+      }
+      if (nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
+        return;
+      }
+      microConfig[packageName] = _microConfig[packageName].packageInfo;
+    });
+
+    Object.keys(_microConfig).forEach(packageName => {
+      if (nginxIp === currentIP) {
+        return;
+      }
+      if (_microConfig[packageName]._isMainPackage) {
+        NginxMicroConfig = `${NginxMicroConfig}
+          location /packages/${packageName}/ {
+            proxy_pass http://${nginxIp}/;
+            proxy_set_header host $host;
+            proxy_set_header X-Real-IP      $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+          `
+      } else {
+        NginxMicroConfig = `${NginxMicroConfig}
+          location /packages/${packageName}/ {
+            proxy_pass http://${nginxIp};
+            proxy_set_header host $host;
+            proxy_set_header X-Real-IP      $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          }
+          `
+      }
+    });
+  });
+
+  const microConfigJsonFile = path.resolve(packages_dir, 'microConfig.json');
+  const NginxMicroConfigFile = path.resolve(NGINX_CONFIG_D_DIR, 'default.conf');
+  writeFileSync(microConfigJsonFile, JSON.stringify(microConfig, null, 2));
+  writeFileSync(NginxMicroConfigFile, NginxMicroConfig);
+
+  nginxReload(() => {
+    console.log(NginxMicroConfig);
+  });
+
+}, 1000);
+
+const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
+  while (true) {
+
+    let hasUpdate = false;
+    await Promise.all(Object.keys(onlineNginxClientMap).map(async (nginxIp) => {
+      // 检查是否下线
+      if (nginxIp === currentIP) {
+        return;
+      }
+      const _microConfig = onlineNginxClientMap[nginxIp];
+      if (!_microConfig.lastCheckTime) {
+        _microConfig.lastCheckTime = 0;
+      }
+      if (Date.now() - _microConfig.lastCheckTime > 60000) {
+        try {
+          await (new Promise((resolve, reject) => {
+            const r = http.get(`${nginxIp}/_currentPackageMap.json`, (response) => {
+              if(response) {
+                resolve(body);
+                console.log(`${nginxIp} is Alive`);
+              } else {
+                reject(error);
+              }
+            });
+            r.on('error', (err) => reject(err));
+            r.on('connect', (res) => resolve(res));
+          }));
+          _microConfig.lastCheckTime = Date.now();
+        } catch {
+          if(delete onlineNginxClientMap[nginxIp]) {
+            delete onlineNginxClientMap[nginxIp];
+            hasUpdate = true;
+          }
+        }
+      }
+    }));
+
+    if (hasUpdate) {
+      refreshMicroConfig(onlineNginxClientMap, currentIP);
+    }
+    await delay(60000);
+  }
+}
+
 const useRedis = async () => {
 
-  const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
-  const NGINX_CONFIG_D_DIR = process.env.NGINX_CONFIG_D_DIR || `/etc/nginx/conf.d/micro-config.d`;
   const S_REDIS_HOST = process.env.S_REDIS_HOST || 'redis';
   const S_REDIS_PORT = process.env.S_S_REDIS_PORT || '6379';
 
@@ -174,10 +320,7 @@ const useRedis = async () => {
     process.exit(1);
     // NGINX_DIST = path.resolve(__dirname, 'test/dist1');
   }
-  const packages_dir = path.resolve(NGINX_DIST, 'packages');
-  if (!existsSync(packages_dir)) {
-    mkdirSync(packages_dir);
-  }
+
   if (!existsSync(NGINX_CONFIG_D_DIR)) {
     mkdirSync(NGINX_CONFIG_D_DIR, { recursive: true });
   }
@@ -186,82 +329,11 @@ const useRedis = async () => {
   const onlineNginxClientMap = {};
 
   const currentPackageMap = getCurrentPackageMap(NGINX_DIST);
+  writeFileSync(resolve(NGINX_DIST, '_currentPackageMap.json'), JSON.stringify(currentPackageMap));
 
   console.log('currentPackageMap', {
     currentPackageMap
   });
-
-  const nginxReload = throttle((cb) => {
-    exec('nginx -s reload', (err, res) => {
-      if (err) {
-        console.error(err);
-      }
-      if (res) {
-        console.log(res);
-      }
-      if (cb) {
-        cb();
-      }
-    });
-  }, 1000);
-
-  const refreshMicroConfig = throttle(() => {
-    console.log('refreshMicroConfig', JSON.stringify(onlineNginxClientMap, null, 2));
-
-    const microConfig = {};
-
-    let NginxMicroConfig = ``;
-
-    Object.keys(onlineNginxClientMap).forEach(nginxIp => {
-      const _microConfig = onlineNginxClientMap[nginxIp];
-
-      Object.keys(_microConfig).forEach(packageName => {
-        if (nginxIp !== currentIP && microConfig[packageName]) {
-          return;
-        }
-        if (nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
-          return;
-        }
-        microConfig[packageName] = _microConfig[packageName].packageInfo;
-      });
-
-      Object.keys(_microConfig).forEach(packageName => {
-        if (nginxIp === currentIP) {
-          return;
-        }
-        if (_microConfig[packageName]._isMainPackage) {
-          NginxMicroConfig = `${NginxMicroConfig}
-            location /packages/${packageName}/ {
-              proxy_pass http://${nginxIp}/;
-              proxy_set_header host $host;
-              proxy_set_header X-Real-IP      $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            }
-            `
-        } else {
-          NginxMicroConfig = `${NginxMicroConfig}
-            location /packages/${packageName}/ {
-              proxy_pass http://${nginxIp};
-              proxy_set_header host $host;
-              proxy_set_header X-Real-IP      $remote_addr;
-              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            }
-            `
-        }
-
-      });
-    });
-
-    const microConfigJsonFile = path.resolve(packages_dir, 'microConfig.json');
-    const NginxMicroConfigFile = path.resolve(NGINX_CONFIG_D_DIR, 'default.conf');
-    writeFileSync(microConfigJsonFile, JSON.stringify(microConfig, null, 2));
-    writeFileSync(NginxMicroConfigFile, NginxMicroConfig);
-
-    nginxReload(() => {
-      console.log(NginxMicroConfig);
-    });
-
-  }, 1000);
 
   // process.exit();
 
@@ -280,7 +352,7 @@ const useRedis = async () => {
 
   const clean = async () => {
     console.log('beforeExit: cleaning');
-    await client.publish(`${S_NAMESPACE}:offline`, currentIP);
+    await client.publish(`${S_NAMESPACE}-offline`, currentIP);
     // console.log('beforeExit2: cleaning');
     // await Promise.all([onlineSubscriber.unsubscribe('online'), offLineSubscriber.unsubscribe('offline')]);
     // console.log('beforeExit3: cleaning');
@@ -293,7 +365,7 @@ const useRedis = async () => {
     clean();
   });
 
-  await client.publish(`${S_NAMESPACE}:online`, JSON.stringify({
+  await client.publish(`${S_NAMESPACE}-online`, JSON.stringify({
     ip: currentIP,
     packageMap: currentPackageMap,
   }));
@@ -301,8 +373,8 @@ const useRedis = async () => {
   const getInfoReplySubscriber = client.duplicate();
   await getInfoReplySubscriber.connect();
 
-  await getInfoReplySubscriber.subscribe(`${S_NAMESPACE}:get-info`, async (geter_ip) => {
-    await client.publish(`${S_NAMESPACE}:online-for-${geter_ip}`, JSON.stringify({
+  await getInfoReplySubscriber.subscribe(`${S_NAMESPACE}-get-info`, async (geter_ip) => {
+    await client.publish(`${S_NAMESPACE}-online-for-${geter_ip}`, JSON.stringify({
       ip: currentIP,
       packageMap: currentPackageMap,
     }));
@@ -310,99 +382,183 @@ const useRedis = async () => {
 
   await Promise.all([offLineSubscriber.connect(), onlineSubscriber.connect()]);
 
-  await Promise.all([offLineSubscriber.subscribe(`${S_NAMESPACE}:offline`, (data) => {
+  await Promise.all([offLineSubscriber.subscribe(`${S_NAMESPACE}-offline`, (data) => {
     console.log(`offline: ${data}`)
-    delete onlineNginxClientMap[data];
-    refreshMicroConfig();
-  }), onlineSubscriber.subscribe([`${S_NAMESPACE}:online`, `${S_NAMESPACE}:online-for-${currentIP}`], (data) => {
+    if(delete onlineNginxClientMap[data]) {
+      delete onlineNginxClientMap[data];
+      refreshMicroConfig(onlineNginxClientMap, currentIP);
+    }
+  }), onlineSubscriber.subscribe([`${S_NAMESPACE}-online`, `${S_NAMESPACE}-online-for-${currentIP}`], (data) => {
     const msgObj = JSON.parse(data);
     onlineNginxClientMap[msgObj.ip] = msgObj.packageMap;
-    console.log(`${S_NAMESPACE}:online: ${msgObj.ip}`);
-    refreshMicroConfig();
+    console.log(`${S_NAMESPACE}-online: ${msgObj.ip}`);
+    refreshMicroConfig(onlineNginxClientMap, currentIP);
   })]);
 
-  await client.publish(`${S_NAMESPACE}:get-info`, currentIP);
+  await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
 
   console.log(`readey!!!`);
 
-  while (true) {
-
-    let hasUpdate = false;
-    await Promise.all(Object.keys(onlineNginxClientMap).map(async (nginxIp) => {
-      // 检查是否下线
-      if (nginxIp === currentIP) {
-        return;
-      }
-      const _microConfig = onlineNginxClientMap[nginxIp];
-      if (!_microConfig.lastCheckTime) {
-        _microConfig.lastCheckTime = 0;
-      }
-      if (Date.now() - _microConfig.lastCheckTime > 60000) {
-        try {
-          await (new Promise((resolve, reject) => {
-            const r = request(nginxIp, (request) => {
-              resolve(request);
-              console.log(`${nginxIp} is Alive`);
-            });
-            r.on('error', (err) => reject(err));
-            r.on('connect', (res) => resolve(res));
-          }));
-          _microConfig.lastCheckTime = Date.now();
-        } catch {
-          delete onlineNginxClientMap[nginxIp];
-          hasUpdate = true;
-        }
-      }
-    }));
-
-    if (hasUpdate) {
-      refreshMicroConfig();
-    }
-    await delay(1000);
-  }
+  await checkAliveAwait(onlineNginxClientMap, currentIP);
 
 };
 
-// const useMdns = async () => {
-//   const mdns = require('multicast-dns')();
+const useMdns = async () => {
+  const encodeData = (data) => {
+    try {
+      return `${Buffer.from(JSON.stringify(data)).toString('base64')}`;
+    } catch {
+      return null;
+    }
+  }
+  const decodeData = (data) => {
+    try {
+      return JSON.parse(Buffer.from(data.toString(), 'base64').toString());
+    } catch(e) {
+      return null;
+    }
+  }
 
-//   mdns.on('response', function(response) {
-//     response.answers.forEach((ans) => {
-//       console.log('name: ', ans.name);
-//       console.log('data: ', ans.data[0]);
-//     });
+  const mdns = require('multicast-dns')();
+  const onlineNginxClientMap = {};
+  const currentIP = getIp();
 
-//     // console.log('got a response packet:', response)
-//   })
-  
-//   // mdns.on('query', function(query) {
-//   //   console.log('got a query packet:', query)
-//   // })
-  
-//   // // lets query for an A record for 'brunhilde.local'
-//   // mdns.query({
-//   //   questions:[{
-//   //     name: 'brunh33ilde.local',
-//   //     type: 'TXT'
-//   //   }]
-//   // })
+  const currentPackageMap = getCurrentPackageMap(NGINX_DIST);
+  writeFileSync(resolve(NGINX_DIST, '_currentPackageMap.json'), JSON.stringify(currentPackageMap));
 
-//   // mdns.respond({
-//   //   answers: [
-//   //   {
-//   //     name: 'brunh33ilde.local',
-//   //     // type: 'Adfsfs',
-//   //     type: 'TXT',
-//   //     data: Buffer.from([254, 0, 66])
-//   //   }]
-//   // });
+  const onOnline = (ip) => {
+    mdns.respond({
+      answers: [
+        {
+          name: `${S_NAMESPACE}-online`,
+          type: 'TXT',
+          data: encodeData({ip})
+        }]
+    });
+  }
 
-// } 
+  const onOffline = (ip) => {
+    mdns.respond({
+      answers: [
+        {
+          name: `${S_NAMESPACE}-offline`,
+          type: 'TXT',
+          data: encodeData({ip})
+        }]
+    });
+  }
 
-useRedis();
+  const onGetinfo = (ip) => {
+    // ${Buffer.from('brunh33ilde.loc--0-s3....23///\\al').toString('base64')}
+    mdns.respond({
+      answers: [
+        {
+          name: `${S_NAMESPACE}-get-info`,
+          type: 'TXT',
+          data: encodeData({ip})
+        }]
+    });
+  }
 
-// if (process.env.USE_REDIS === 'true') {
-//   useRedis();
-// } else {
-//   useMdns();
-// }
+  mdns.on('response', function (response) {
+    // console.log('got a response packet:', response)
+    response.answers.forEach((ans) => {
+      if (!ans.name.startsWith(`${S_NAMESPACE}-`)) {
+        return;
+      }
+      const type = ans.name.replace(`${S_NAMESPACE}-`, '');
+      const data = decodeData(ans.data[0])
+      console.log('type: ', type);
+      console.log('data: ', data);
+      if(type === 'online' ) {
+        (async () => {
+          let ccMap = null;
+          if(data.ip === currentIP) {
+            ccMap = currentPackageMap;
+          } else {
+            try{
+              ccMap = await (new Promise((resolve, reject) => {
+                const r = http.get(`${data.ip}/_currentPackageMap.json`, (response) => {
+                  res.setEncoding('utf8');
+                  let rawData = '';
+                  res.on('data', (chunk) => { rawData += chunk; });
+                  res.on('end', () => {
+                    resolve(rawData);
+                  });
+                  res.on('error', (err) => reject(err))
+                });
+                r.on('error', (err) => reject(err));
+              }));
+            }catch(e){
+              console.error(e);
+            }
+          }
+          if(ccMap) {
+            onlineNginxClientMap[data.ip] = ccMap
+            refreshMicroConfig(onlineNginxClientMap, currentIP)
+          }
+        })();
+      }
+      if(type === 'offline' ) {
+        if(onlineNginxClientMap[data.ip]) {
+          delete onlineNginxClientMap[data.ip];
+          refreshMicroConfig(onlineNginxClientMap, currentIP)
+        }
+      }
+      if(type === 'get-info') {
+        if(data.ip !== currentIP) {
+          onOnline(currentIP);
+        }
+      }
+    });
+  });
+
+  onOnline(currentIP);
+  onGetinfo(currentIP);
+  // await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
+
+  const clean = async () => {
+    console.log('beforeExit: cleaning');
+    onOffline(currentIP);
+    await promisify(mdns.destroy)();
+    console.log('beforeExit4: cleaned');
+    process.exit();
+  }
+
+  process.on('SIGINT', () => {
+    clean();
+  });
+
+  // mdns.on('query', function(query) {
+  //   console.log('got a query packet:', query)
+  // })
+
+  // // lets query for an A record for 'brunhilde.local'
+  // mdns.query({
+  //   questions:[{
+  //     name: 'brunh33ilde.local',
+  //     type: 'TXT'
+  //   }]
+  // })
+
+  // mdns.respond({
+  //   answers: [
+  //   {
+  //     name: 'brunh33ilde.local',
+  //     // type: 'Adfsfs',
+  //     type: 'TXT',
+  //     data: Buffer.from([254, 0, 66])
+  //   }]
+  // });
+
+  console.log(`readey!!!`);
+  await checkAliveAwait(onlineNginxClientMap, currentIP);
+}
+
+// useRedis();
+
+if (process.env.USE_REDIS === 'true') {
+  useRedis();
+} else {
+  useMdns();
+}
