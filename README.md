@@ -39,6 +39,48 @@ yarn run test
 
 - http://localhost/packages/main3/package.json
 
+## 使用
+
+```bash
+mkdir project-dir
+cd project-dit
+```
+
+创建文件
+
+- Dockerfile
+
+```
+FROM jonneywu/distributed-nginx:1
+COPY dist /usr/share/nginx/html
+```
+
+- dist/package.json
+
+```
+{
+    "name": "front-service-name"
+}
+```
+
+- dist/packages/m2/package.json
+```
+{
+    "name": "front-sub-service-name"
+}
+```
+
+打包
+
+```bash
+docker build . -t nginx-test:1  --no-cache
+```
+
+测试
+
+```bash
+docker run -p 80:80 -ti --rm --name nginx-test nginx-test:1
+```
 
 ## 环境变量配置
 

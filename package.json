@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "NODE_DEBUG=true node index.js",
-    "build": "docker build . -t distributed-nginx:1",
+    "build": "docker build . -t jonneywu/distributed-nginx:1",
     "test": "npm run build && lerna exec -- ./test.sh"
   },
   "dependencies": {

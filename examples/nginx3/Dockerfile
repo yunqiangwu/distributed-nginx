@@ -1,3 +1,3 @@
-FROM distributed-nginx:1
+FROM jonneywu/distributed-nginx:1
 
 COPY dist1 /usr/share/nginx/html

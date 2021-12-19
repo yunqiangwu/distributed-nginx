@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# docker build . -t distributed-nginx:1
+# docker build . -t jonneywu/distributed-nginx:1
 
 # docker run -d -p 6379:6379 -ti --name redis redis
 
