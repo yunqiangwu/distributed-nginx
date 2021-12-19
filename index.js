@@ -286,12 +286,18 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
       if (Date.now() - _microConfig.lastCheckTime > 60000) {
         try {
           await (new Promise((resolve, reject) => {
-            const r = http.get(`http://${nginxIp}/_currentPackageMap.json`, (response) => {
-              if(response) {
-                resolve(body);
-                console.log(`${nginxIp} is Alive`);
+            const r = http.get({
+              host: nginxIp,
+              path: '/_currentPackageMap.json',
+              // url: `http://${data.ip}/_currentPackageMap.json`,
+              headers: {
+                'Host': 'localhost'
+              }
+            }, (res) => {
+              if(res.statusCode === 200) {
+                resolve(res.statusCode);
               } else {
-                reject(error);
+                reject(res.statusCode);
               }
             });
             r.on('error', (err) => reject(err));
