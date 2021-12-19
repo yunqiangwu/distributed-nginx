@@ -234,6 +234,9 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
     });
 
     Object.keys(_microConfig).forEach(packageName => {
+      if(packageName === '_lastCheckTime') {
+        return;
+      }
       if (nginxIp === currentIP) {
         return;
       }
@@ -280,10 +283,10 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
         return;
       }
       const _microConfig = onlineNginxClientMap[nginxIp];
-      if (!_microConfig.lastCheckTime) {
-        _microConfig.lastCheckTime = 0;
+      if (!_microConfig._lastCheckTime) {
+        _microConfig._lastCheckTime = 0;
       }
-      if (Date.now() - _microConfig.lastCheckTime > 60000) {
+      if (Date.now() - _microConfig._lastCheckTime > 60000) {
         try {
           await (new Promise((resolve, reject) => {
             const r = http.get({
@@ -303,7 +306,7 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
             r.on('error', (err) => reject(err));
             r.on('connect', (res) => resolve(res));
           }));
-          _microConfig.lastCheckTime = Date.now();
+          _microConfig._lastCheckTime = Date.now();
         } catch {
           if(onlineNginxClientMap[nginxIp]) {
             delete onlineNginxClientMap[nginxIp];

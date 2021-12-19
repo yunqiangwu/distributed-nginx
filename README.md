@@ -17,9 +17,7 @@ Manually,
 ```bash
 git clone https://github.com/yunqiangwu/distributed-nginx.git
 cd distributed-nginx
-yarn run build
 yarn run test
-
 ```
 
 ## 访问环境
