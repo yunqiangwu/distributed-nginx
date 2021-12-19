@@ -295,7 +295,7 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
           }));
           _microConfig.lastCheckTime = Date.now();
         } catch {
-          if(delete onlineNginxClientMap[nginxIp]) {
+          if(onlineNginxClientMap[nginxIp]) {
             delete onlineNginxClientMap[nginxIp];
             hasUpdate = true;
           }
