@@ -44,7 +44,7 @@ yarn run test
 
 ### S_NAMESPACE
 
-  含义：命名空间， 用于部署不同环境的nginx  
+  含义：命名空间， 用于部署不同开发环境的 nginx  
   默认值： hzero_front_
   > 注意：配置长度不能超过 200 字符
 
