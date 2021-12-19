@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "test:2222": "NGINX_DIST=test/dist1 node index.js",
+    "start": "NODE_DEBUG=true node index.js",
     "build": "docker build . -t distributed-nginx:1",
     "test": "npm run build && lerna exec -- ./test.sh"
   },

@@ -1,13 +1,29 @@
 
  const mdns = require('multicast-dns')();
 
+const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_';
+
+const encodeData = (data) => {
+  try {
+    return `${Buffer.from(JSON.stringify(data)).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+const decodeData = (data) => {
+  try {
+    return JSON.parse(Buffer.from(data.toString(), 'base64').toString());
+  } catch(e) {
+    return null;
+  }
+}
+
  mdns.respond({
     answers: [
     {
-      name: Buffer.from('brunh33ilde.loc--0-s3....23///\\al').toString('base64'),
-      // type: 'Adfsfs',
+      name: `${S_NAMESPACE}-offline`,
       type: 'TXT',
-      data: Buffer.from([254, 0, 66])
+      data: encodeData({ip: '3.4.5.6'})
     }]
   });
 

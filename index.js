@@ -6,8 +6,10 @@ const { resolve } = require("path");
 const path = require("path");
 
 // test remove todo
-// process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
-// process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
+if(process.env.NODE_DEBUG === 'true') {
+  process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
+  process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
+}
 
 const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_';
 const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
@@ -543,6 +545,7 @@ const useMdns = async () => {
   const clean = async () => {
     console.log('beforeExit: cleaning');
     onOffline(currentIP);
+    await delay(200);
     await promisify(mdns.destroy)();
     console.log('beforeExit4: cleaned');
     process.exit();
