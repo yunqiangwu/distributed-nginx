@@ -6,12 +6,16 @@ const { resolve } = require("path");
 const path = require("path");
 
 // test remove todo
-process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
-process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
+// process.env.NGINX_DIST = path.resolve(__dirname, 'test/dist1');
+// process.env.NGINX_CONFIG_D_DIR = path.resolve(__dirname, 'test/nginx-config/micro-config.d');
 
 const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_';
 const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
 const NGINX_CONFIG_D_DIR = process.env.NGINX_CONFIG_D_DIR || `/etc/nginx/conf.d/micro-config.d`;
+
+if (!existsSync(NGINX_CONFIG_D_DIR)) {
+  mkdirSync(NGINX_CONFIG_D_DIR, { recursive: true });
+}
 
 const packages_dir = path.resolve(NGINX_DIST, 'packages');
 if (!existsSync(packages_dir)) {
@@ -210,7 +214,7 @@ const nginxReload = throttle((cb) => {
 }, 1000);
 
 const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
-  console.log('refreshMicroConfig', JSON.stringify(onlineNginxClientMap, null, 2));
+  console.log('refreshMicroConfig:', JSON.stringify(onlineNginxClientMap, null, 2));
 
   const microConfig = {};
 
@@ -282,7 +286,7 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
       if (Date.now() - _microConfig.lastCheckTime > 60000) {
         try {
           await (new Promise((resolve, reject) => {
-            const r = http.get(`${nginxIp}/_currentPackageMap.json`, (response) => {
+            const r = http.get(`http://${nginxIp}/_currentPackageMap.json`, (response) => {
               if(response) {
                 resolve(body);
                 console.log(`${nginxIp} is Alive`);
@@ -319,10 +323,6 @@ const useRedis = async () => {
     console.error(`dir \`${NGINX_DIST}\` not exist! maybe env 'NGINX_DIST' not set!`)
     process.exit(1);
     // NGINX_DIST = path.resolve(__dirname, 'test/dist1');
-  }
-
-  if (!existsSync(NGINX_CONFIG_D_DIR)) {
-    mkdirSync(NGINX_CONFIG_D_DIR, { recursive: true });
   }
 
   const currentIP = getIp();
@@ -477,20 +477,34 @@ const useMdns = async () => {
             ccMap = currentPackageMap;
           } else {
             try{
+              // await delay(1000);
               ccMap = await (new Promise((resolve, reject) => {
-                const r = http.get(`${data.ip}/_currentPackageMap.json`, (response) => {
-                  res.setEncoding('utf8');
-                  let rawData = '';
-                  res.on('data', (chunk) => { rawData += chunk; });
-                  res.on('end', () => {
-                    resolve(rawData);
-                  });
+                const r = http.get({
+                  host: data.ip,
+                  path: '/_currentPackageMap.json',
+                  // url: `http://${data.ip}/_currentPackageMap.json`,
+                  headers: {
+                    'Host': 'localhost'
+                  }
+                }, (res) => {
+                  if(res.statusCode === 200) {
+                    res.setEncoding('utf8');
+                    let rawData = '';
+                    res.on('data', (chunk) => { rawData += chunk; });
+                    res.on('end', () => {
+                      resolve(rawData);
+                    });
+                  } else {
+                    reject(res.statusCode);
+                  }
                   res.on('error', (err) => reject(err))
                 });
                 r.on('error', (err) => reject(err));
               }));
+              ccMap = JSON.parse(ccMap);
             }catch(e){
-              console.error(e);
+              ccMap = null;
+              console.error('Error:', e);
             }
           }
           if(ccMap) {
