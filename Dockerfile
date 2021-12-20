@@ -25,5 +25,6 @@ ENV S_NAMESPACE hzero_front_
 
 COPY ["docker/nginx-config-d/default.conf","/etc/nginx/conf.d/default.conf"]
 COPY docker/docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT ["tini", "/docker-entrypoint.sh", "--"]
 CMD ["node", "index.js"]
