@@ -222,14 +222,22 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
 
   let NginxMicroConfig = ``;
 
+  const currentPackageMap = onlineNginxClientMap[currentIP];
+
   Object.keys(onlineNginxClientMap).forEach(nginxIp => {
     const _microConfig = onlineNginxClientMap[nginxIp];
 
     Object.keys(_microConfig).forEach(packageName => {
-      if (nginxIp !== currentIP && microConfig[packageName]) {
+      if(packageName === '_lastCheckTime') {
+        return;
+      }
+      if (microConfig[packageName]) {
         return;
       }
       if (nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
+        return;
+      }
+      if(nginxIp !== currentIP && currentPackageMap[packageName] && _microConfig[packageName]) {
         return;
       }
       microConfig[packageName] = _microConfig[packageName].packageInfo;
