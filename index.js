@@ -223,6 +223,9 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
   let NginxMicroConfig = ``;
 
   const currentPackageMap = onlineNginxClientMap[currentIP];
+  if(!currentPackageMap) {
+    return;
+  }
 
   Object.keys(onlineNginxClientMap).forEach(nginxIp => {
     const _microConfig = onlineNginxClientMap[nginxIp];
@@ -550,16 +553,24 @@ const useMdns = async () => {
   onGetinfo(currentIP);
   // await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
 
+  let isExiting = false;
   const clean = async () => {
+    if(isExiting) {
+      return;
+    }
+    isExiting = true;
     console.log('beforeExit: cleaning');
     onOffline(currentIP);
-    await delay(200);
+    await delay(500);
     await promisify(mdns.destroy)();
     console.log('beforeExit4: cleaned');
     process.exit();
   }
 
   process.on('SIGINT', () => {
+    clean();
+  });
+  process.on('exit', () => {
     clean();
   });
 
