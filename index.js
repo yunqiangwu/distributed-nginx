@@ -1,5 +1,5 @@
 const { exec } = require("child_process");
-const { existsSync, readdirSync, writeFileSync, mkdir, mkdirSync, unlinkSync } = require("fs");
+const { existsSync, readdirSync, writeFileSync, mkdirSync } = require("fs");
 const http = require("http");
 const os = require("os");
 const { resolve } = require("path");
@@ -220,7 +220,7 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
 
   const microConfig = {};
 
-  let NginxMicroConfig = ``;
+  let NginxMicroConfig = {};
 
   const currentPackageMap = onlineNginxClientMap[currentIP];
   if(!currentPackageMap) {
@@ -234,27 +234,24 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
       if(packageName === '_lastCheckTime') {
         return;
       }
-      if (microConfig[packageName]) {
-        return;
-      }
+      // if (microConfig[packageName]) {
+      //   return;
+      // }
       if (nginxIp === currentIP && _microConfig[packageName]._isMainPackage) {
         return;
       }
       if(nginxIp !== currentIP && currentPackageMap[packageName] && _microConfig[packageName]) {
         return;
       }
-      microConfig[packageName] = _microConfig[packageName].packageInfo;
-    });
 
-    Object.keys(_microConfig).forEach(packageName => {
-      if(packageName === '_lastCheckTime') {
-        return;
-      }
+      microConfig[packageName] = _microConfig[packageName].packageInfo;
+
       if (nginxIp === currentIP) {
         return;
       }
+
       if (_microConfig[packageName]._isMainPackage) {
-        NginxMicroConfig = `${NginxMicroConfig}
+        NginxMicroConfig[packageName] = `
           location /packages/${packageName}/ {
             proxy_pass http://${nginxIp}/;
             proxy_set_header host $host;
@@ -263,7 +260,7 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
           }
           `
       } else {
-        NginxMicroConfig = `${NginxMicroConfig}
+        NginxMicroConfig[packageName] = `
           location /packages/${packageName}/ {
             proxy_pass http://${nginxIp};
             proxy_set_header host $host;
@@ -273,15 +270,17 @@ const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
           `
       }
     });
+
   });
 
   const microConfigJsonFile = path.resolve(packages_dir, 'microConfig.json');
   const NginxMicroConfigFile = path.resolve(NGINX_CONFIG_D_DIR, 'default.conf');
   writeFileSync(microConfigJsonFile, JSON.stringify(microConfig, null, 2));
-  writeFileSync(NginxMicroConfigFile, NginxMicroConfig);
+  const NginxMicroConf = Object.values(NginxMicroConfig).join('\n');
+  writeFileSync(NginxMicroConfigFile, NginxMicroConf);
 
   nginxReload(() => {
-    console.log(NginxMicroConfig);
+    console.log(NginxMicroConf);
   });
 
 }, 1000);
