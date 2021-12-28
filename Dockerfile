@@ -23,6 +23,7 @@ ENV S_REDIS_PORT 6379
 ENV USE_REDIS false
 ENV S_NAMESPACE hzero_front_
 
+ADD "docker/nginx.conf" "/etc/nginx/nginx.conf"
 ADD "docker/nginx-config-d/default.conf" "/etc/nginx/conf.d/default.conf"
 COPY docker/docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
