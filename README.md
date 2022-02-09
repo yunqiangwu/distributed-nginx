@@ -93,7 +93,8 @@ docker run -p 80:80 -ti --rm --name nginx-test nginx-test:1
 
 ### USE_REDIS 
 
-  含义：是否使用 redis 协议， 默认使用 mdns 协议  
+  含义：是否使用 redis 协议， 默认使用 mdns 协议 
+  如果设置为 none 则关闭自动更新 微前端配置和代理
   默认值： false
 
 ### S_REDIS_HOST

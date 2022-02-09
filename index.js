@@ -604,5 +604,13 @@ const useMdns = async () => {
 if (process.env.USE_REDIS === 'true') {
   useRedis();
 } else {
-  useMdns();
+  if (process.env.USE_REDIS === 'none') {
+    (async () => {
+      while(true) {
+        await delay(24 * 60 * 60 * 1000);
+      }
+    })();
+  } else {
+    useMdns();
+  }
 }
