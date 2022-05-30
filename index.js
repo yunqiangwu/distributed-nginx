@@ -60,8 +60,12 @@ const getIp = () => {
   }
 
   if (currentInterName) {
-    const inter = networkInterfaces[currentInterName].find(item => item.family === 'IPv4');
-    return inter.address;
+    const inter = networkInterfaces[currentInterName].find(item => (item.family === 'IPv4' || item.family === 4));
+    if(inter) {
+      return inter.address;
+    } else {
+      networkInterfaces[currentInterName][0].address
+    }
   }
 
   return '127.0.0.1';
