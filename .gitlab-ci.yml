@@ -5,8 +5,11 @@ docker-build:
   image: docker.io/library/docker:latest
   stage: docker-build
   script:
-    - docker build . -t registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
+    - export C7N_COMMIT_SHA=$(echo ${CI_COMMIT_SHA:-abcdefghijklmhopqrst} | awk '{print substr($1,1,8)}')
+    - docker build . -t registry.hand-china.com/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA}
     - docker login registry.hand-china.com --password ${DOCKER_PASSWORD} --username ${DOCKER_USER}
+    - docker push registry.hand-china.com/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA}
+    - docker tag registry.hand-china.com/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA} registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
     - docker push registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
   only:
     - master
