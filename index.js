@@ -12,6 +12,7 @@ if(process.env.NODE_DEBUG === 'true') {
 }
 
 const S_NAMESPACE = process.env.S_NAMESPACE || 'hzero_front_';
+const S_NO_CHANGE_MICRO = process.env.S_NO_CHANGE_MICRO === 'true';
 const NGINX_DIST = process.env.NGINX_DIST || `/usr/share/nginx/html`;
 const NGINX_CONFIG_D_DIR = process.env.NGINX_CONFIG_D_DIR || `/etc/nginx/conf.d/micro-config.d`;
 
@@ -342,7 +343,7 @@ const checkAliveAwait = async (onlineNginxClientMap, currentIP) => {
 const useRedis = async () => {
 
   const S_REDIS_HOST = process.env.S_REDIS_HOST || 'redis';
-  const S_REDIS_PORT = process.env.S_S_REDIS_PORT || '6379';
+  const S_REDIS_PORT = process.env.S_REDIS_PORT || '6379';
 
   if (!existsSync(NGINX_DIST)) {
     console.error(`dir \`${NGINX_DIST}\` not exist! maybe env 'NGINX_DIST' not set!`)
@@ -372,16 +373,9 @@ const useRedis = async () => {
 
   await client.connect();
 
-  const onlineSubscriber = client.duplicate();
-  const offLineSubscriber = client.duplicate();
-
   const clean = async () => {
     console.log('beforeExit: cleaning');
     await client.publish(`${S_NAMESPACE}-offline`, currentIP);
-    // console.log('beforeExit2: cleaning');
-    // await Promise.all([onlineSubscriber.unsubscribe('online'), offLineSubscriber.unsubscribe('offline')]);
-    // console.log('beforeExit3: cleaning');
-    // await Promise.all([client.quit(),offLineSubscriber.quit(), onlineSubscriber.quit()]);
     console.log('beforeExit4: cleaned');
     process.exit();
   }
@@ -405,26 +399,34 @@ const useRedis = async () => {
     }));
   });
 
-  await Promise.all([offLineSubscriber.connect(), onlineSubscriber.connect()]);
+  if(!S_NO_CHANGE_MICRO) {
+  
+    const onlineSubscriber = client.duplicate();
+    const offLineSubscriber = client.duplicate();
+    
+    await Promise.all([offLineSubscriber.connect(), onlineSubscriber.connect()]);
 
-  await Promise.all([offLineSubscriber.subscribe(`${S_NAMESPACE}-offline`, (data) => {
-    console.log(`offline: ${data}`)
-    if(delete onlineNginxClientMap[data]) {
-      delete onlineNginxClientMap[data];
+    await Promise.all([offLineSubscriber.subscribe(`${S_NAMESPACE}-offline`, (data) => {
+      console.log(`offline: ${data}`)
+      if(delete onlineNginxClientMap[data]) {
+        delete onlineNginxClientMap[data];
+        refreshMicroConfig(onlineNginxClientMap, currentIP);
+      }
+    }), onlineSubscriber.subscribe([`${S_NAMESPACE}-online`, `${S_NAMESPACE}-online-for-${currentIP}`], (data) => {
+      const msgObj = JSON.parse(data);
+      onlineNginxClientMap[msgObj.ip] = msgObj.packageMap;
+      console.log(`${S_NAMESPACE}-online: ${msgObj.ip}`);
       refreshMicroConfig(onlineNginxClientMap, currentIP);
-    }
-  }), onlineSubscriber.subscribe([`${S_NAMESPACE}-online`, `${S_NAMESPACE}-online-for-${currentIP}`], (data) => {
-    const msgObj = JSON.parse(data);
-    onlineNginxClientMap[msgObj.ip] = msgObj.packageMap;
-    console.log(`${S_NAMESPACE}-online: ${msgObj.ip}`);
-    refreshMicroConfig(onlineNginxClientMap, currentIP);
-  })]);
-
-  await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
+    })]);
+  
+    await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
+  }
 
   console.log(`readey!!!`);
 
-  await checkAliveAwait(onlineNginxClientMap, currentIP);
+  if(!S_NO_CHANGE_MICRO) {
+    await checkAliveAwait(onlineNginxClientMap, currentIP);
+  }
 
 };
 
@@ -495,53 +497,55 @@ const useMdns = async () => {
       const data = decodeData(ans.data[0])
       console.log('type: ', type);
       console.log('data: ', data);
-      if(type === 'online' ) {
-        (async () => {
-          let ccMap = null;
-          if(data.ip === currentIP) {
-            ccMap = currentPackageMap;
-          } else {
-            try{
-              // await delay(1000);
-              ccMap = await (new Promise((resolve, reject) => {
-                const r = http.get({
-                  host: data.ip,
-                  path: '/_currentPackageMap.json',
-                  // url: `http://${data.ip}/_currentPackageMap.json`,
-                  headers: {
-                    'Host': 'localhost'
-                  }
-                }, (res) => {
-                  if(res.statusCode === 200) {
-                    res.setEncoding('utf8');
-                    let rawData = '';
-                    res.on('data', (chunk) => { rawData += chunk; });
-                    res.on('end', () => {
-                      resolve(rawData);
-                    });
-                  } else {
-                    reject(res.statusCode);
-                  }
-                  res.on('error', (err) => reject(err))
-                });
-                r.on('error', (err) => reject(err));
-              }));
-              ccMap = JSON.parse(ccMap);
-            }catch(e){
-              ccMap = null;
-              console.error('Error:', e);
+      if(!S_NO_CHANGE_MICRO) {
+        if(type === 'online' ) {
+          (async () => {
+            let ccMap = null;
+            if(data.ip === currentIP) {
+              ccMap = currentPackageMap;
+            } else {
+              try{
+                // await delay(1000);
+                ccMap = await (new Promise((resolve, reject) => {
+                  const r = http.get({
+                    host: data.ip,
+                    path: '/_currentPackageMap.json',
+                    // url: `http://${data.ip}/_currentPackageMap.json`,
+                    headers: {
+                      'Host': 'localhost'
+                    }
+                  }, (res) => {
+                    if(res.statusCode === 200) {
+                      res.setEncoding('utf8');
+                      let rawData = '';
+                      res.on('data', (chunk) => { rawData += chunk; });
+                      res.on('end', () => {
+                        resolve(rawData);
+                      });
+                    } else {
+                      reject(res.statusCode);
+                    }
+                    res.on('error', (err) => reject(err))
+                  });
+                  r.on('error', (err) => reject(err));
+                }));
+                ccMap = JSON.parse(ccMap);
+              }catch(e){
+                ccMap = null;
+                console.error('Error:', e);
+              }
             }
-          }
-          if(ccMap) {
-            onlineNginxClientMap[data.ip] = ccMap
+            if(ccMap) {
+              onlineNginxClientMap[data.ip] = ccMap
+              refreshMicroConfig(onlineNginxClientMap, currentIP)
+            }
+          })();
+        }
+        if(type === 'offline' ) {
+          if(onlineNginxClientMap[data.ip]) {
+            delete onlineNginxClientMap[data.ip];
             refreshMicroConfig(onlineNginxClientMap, currentIP)
           }
-        })();
-      }
-      if(type === 'offline' ) {
-        if(onlineNginxClientMap[data.ip]) {
-          delete onlineNginxClientMap[data.ip];
-          refreshMicroConfig(onlineNginxClientMap, currentIP)
         }
       }
       if(type === 'get-info') {
@@ -553,7 +557,9 @@ const useMdns = async () => {
   });
 
   onOnline(currentIP);
-  onGetinfo(currentIP);
+  if(!S_NO_CHANGE_MICRO) {
+    onGetinfo(currentIP);
+  }
   // await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
 
   let isExiting = false;
@@ -577,30 +583,10 @@ const useMdns = async () => {
     clean();
   });
 
-  // mdns.on('query', function(query) {
-  //   console.log('got a query packet:', query)
-  // })
-
-  // // lets query for an A record for 'brunhilde.local'
-  // mdns.query({
-  //   questions:[{
-  //     name: 'brunh33ilde.local',
-  //     type: 'TXT'
-  //   }]
-  // })
-
-  // mdns.respond({
-  //   answers: [
-  //   {
-  //     name: 'brunh33ilde.local',
-  //     // type: 'Adfsfs',
-  //     type: 'TXT',
-  //     data: Buffer.from([254, 0, 66])
-  //   }]
-  // });
-
   console.log(`readey!!!`);
-  await checkAliveAwait(onlineNginxClientMap, currentIP);
+  if(!S_NO_CHANGE_MICRO) {
+    await checkAliveAwait(onlineNginxClientMap, currentIP);
+  }
 }
 
 // useRedis();

@@ -106,3 +106,8 @@ docker run -p 80:80 -ti --rm --name nginx-test nginx-test:1
 
   含义：redis 服务器 的 端口  
   默认值： 6379
+
+### S_NO_CHANGE_MICRO
+
+  含义：如果设置为 true ， 则不变更当前服务的数据， 只把当前服务的数据提供给其他服务使用
+  默认值： false

@@ -1,0 +1,53 @@
+Arguments: 
+  /Users/wuyun/.nvm/versions/node/v14.17.0/bin/node /Users/wuyun/.nvm/versions/node/v14.17.0/bin/yarn
+
+PATH: 
+  /Users/wuyun/.wasienv/bin:/Users/wuyun/.wasmer/bin:/Users/wuyun/opt/anaconda3/bin:/Users/wuyun/opt/anaconda3/condabin:/Users/wuyun/.nvm/versions/node/v14.17.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/VMware Fusion.app/Contents/Public:/usr/local/go/bin:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Users/wuyun/.cargo/bin:/usr/local/opt/code-server/bin:/Users/wuyun/.wasmer/globals/wapm_packages/.bin
+
+Yarn version: 
+  1.22.19
+
+Node version: 
+  14.17.0
+
+Platform: 
+  darwin x64
+
+Trace: 
+  Error: http://nexus.saas.hand-china.com/content/repositories/hzero-ui/multicast-dns: Package 'multicast-dns' not found
+      at Request.params.callback [as _callback] (/Users/wuyun/.nvm/versions/node/v14.17.0/lib/node_modules/yarn/lib/cli.js:66145:18)
+      at Request.self.callback (/Users/wuyun/.nvm/versions/node/v14.17.0/lib/node_modules/yarn/lib/cli.js:140890:22)
+      at Request.emit (events.js:376:20)
+      at Request.<anonymous> (/Users/wuyun/.nvm/versions/node/v14.17.0/lib/node_modules/yarn/lib/cli.js:141862:10)
+      at Request.emit (events.js:376:20)
+      at IncomingMessage.<anonymous> (/Users/wuyun/.nvm/versions/node/v14.17.0/lib/node_modules/yarn/lib/cli.js:141784:12)
+      at Object.onceWrapper (events.js:482:28)
+      at IncomingMessage.emit (events.js:388:22)
+      at endReadableNT (internal/streams/readable.js:1336:12)
+      at processTicksAndRejections (internal/process/task_queues.js:82:21)
+
+npm manifest: 
+  {
+    "name": "distributed-nginx",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT",
+    "scripts": {
+      "start": "NODE_DEBUG=true node index.js",
+      "build": "docker build . -t jonneywu/distributed-nginx:1",
+      "test": "npm run build && lerna exec -- . ./test.sh"
+    },
+    "dependencies": {
+      "multicast-dns": "^7.2.4",
+      "redis": "^4.0.1"
+    },
+    "devDependencies": {
+      "lerna": "^4.0.0"
+    }
+  }
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile
