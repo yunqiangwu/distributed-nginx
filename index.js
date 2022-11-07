@@ -207,6 +207,10 @@ const getCurrentPackageMap = (nginxDist) => {
 };
 
 const nginxReload = throttle((cb) => {
+  if(process.env.NODE_DEBUG==='true') {
+    // console.log(`exec('nginx -s reload')`);
+    return;
+  }
   exec('nginx -s reload', (err, res) => {
     if (err) {
       console.error(err);
@@ -221,7 +225,7 @@ const nginxReload = throttle((cb) => {
 }, 1000);
 
 const refreshMicroConfig = throttle((onlineNginxClientMap, currentIP) => {
-  console.log('refreshMicroConfig:', JSON.stringify(onlineNginxClientMap, null, 2));
+  // console.log('refreshMicroConfig:', JSON.stringify(onlineNginxClientMap, null, 2));
 
   const microConfig = {};
 
@@ -357,9 +361,9 @@ const useRedis = async () => {
   const currentPackageMap = getCurrentPackageMap(NGINX_DIST);
   writeFileSync(resolve(NGINX_DIST, '_currentPackageMap.json'), JSON.stringify(currentPackageMap));
 
-  console.log('currentPackageMap', {
-    currentPackageMap
-  });
+  // console.log('currentPackageMap', {
+  //   currentPackageMap
+  // });
 
   // process.exit();
 
@@ -373,12 +377,26 @@ const useRedis = async () => {
 
   await client.connect();
 
+  let isExiting = false;
   const clean = async () => {
-    console.log('beforeExit: cleaning');
-    await client.publish(`${S_NAMESPACE}-offline`, currentIP);
+    if(isExiting) {
+      return;
+    }
+    isExiting = true;
+    try {
+      console.log('beforeExit: cleaning');
+      await client.publish(`${S_NAMESPACE}-offline`, currentIP);
+      await client.disconnect();
+    } catch(e) {
+      console.error(e);
+    }
     console.log('beforeExit4: cleaned');
     process.exit();
   }
+  
+  process.on('SIGTERM', () => {
+    clean();
+  });
 
   process.on('SIGINT', () => {
     clean();
@@ -422,7 +440,7 @@ const useRedis = async () => {
     await client.publish(`${S_NAMESPACE}-get-info`, currentIP);
   }
 
-  console.log(`readey!!!`);
+  console.log(`readey!!! (${process.pid})`);
 
   if(!S_NO_CHANGE_MICRO) {
     await checkAliveAwait(onlineNginxClientMap, currentIP);
@@ -495,8 +513,8 @@ const useMdns = async () => {
       }
       const type = ans.name.replace(`${S_NAMESPACE}-`, '');
       const data = decodeData(ans.data[0])
-      console.log('type: ', type);
-      console.log('data: ', data);
+      // console.log('type: ', type);
+      // console.log('data: ', data);
       if(!S_NO_CHANGE_MICRO) {
         if(type === 'online' ) {
           (async () => {
@@ -568,13 +586,21 @@ const useMdns = async () => {
       return;
     }
     isExiting = true;
-    console.log('beforeExit: cleaning');
-    onOffline(currentIP);
-    await delay(500);
-    await promisify(mdns.destroy)();
+    try {
+      console.log('beforeExit: cleaning');
+      onOffline(currentIP);
+      await delay(50);
+      await promisify(mdns.destroy)();
+    } catch(e) {
+      console.error(e);
+    }
     console.log('beforeExit4: cleaned');
     process.exit();
   }
+
+  process.on('SIGTERM', () => {
+    clean();
+  });
 
   process.on('SIGINT', () => {
     clean();
@@ -583,7 +609,7 @@ const useMdns = async () => {
     clean();
   });
 
-  console.log(`readey!!!`);
+  console.log(`readey!!! (${process.pid})`);
   if(!S_NO_CHANGE_MICRO) {
     await checkAliveAwait(onlineNginxClientMap, currentIP);
   }

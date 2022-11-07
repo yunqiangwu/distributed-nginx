@@ -5,7 +5,7 @@ RUN echo deb http://mirrors.ustc.edu.cn/debian buster main contrib non-free > /e
   echo deb http://mirrors.ustc.edu.cn/debian buster-proposed-updates main contrib non-free >> /etc/apt/sources.list &&\
   echo deb http://mirrors.ustc.edu.cn/debian-security buster/updates main contrib non-free >> /etc/apt/sources.list
 
-RUN apt-get update -y && apt-get install tini nginx -y && apt-get remove --purge --auto-remove -y && apt-get clean
+RUN apt-get update -y && apt-get install nginx -y && apt-get remove --purge --auto-remove -y && apt-get clean
 
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
@@ -27,5 +27,5 @@ ADD "docker/nginx.conf" "/etc/nginx/nginx.conf"
 ADD "docker/nginx-config-d/default.conf" "/etc/nginx/conf.d/default.conf"
 COPY docker/docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
-ENTRYPOINT ["tini", "/docker-entrypoint.sh", "--"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", "index.js"]

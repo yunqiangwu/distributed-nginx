@@ -7,7 +7,8 @@
     "start": "NODE_DEBUG=true node index.js",
     "start2": "S_REDIS_HOST=127.0.0.1 USE_REDIS=true S_NO_CHANGE_MICRO=true NODE_DEBUG=true node index.js",
     "build": "docker build . -t jonneywu/distributed-nginx:1",
-    "test": "npm run build && lerna exec -- . ./test.sh"
+    "test": "npm run build && lerna exec -- . ./test.sh",
+    "test2": "npm run build && lerna exec -- . ./test-redis.sh"
   },
   "dependencies": {
     "multicast-dns": "^7.2.4",
