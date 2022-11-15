@@ -10,7 +10,7 @@ RUN apt-get update -y && apt-get install nginx -y && apt-get remove --purge --au
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
 COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
-RUN npm install --production --silent && mv node_modules ../
+RUN npm install --production --silent --registry https://registry.npmmirror.com/ && mv node_modules ../
 COPY index.js index.js
 EXPOSE 80
 RUN chown -R node /usr/src/app
