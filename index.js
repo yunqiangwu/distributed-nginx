@@ -168,7 +168,7 @@ const delay = (timeout = 0) => {
 
 const getCurrentPackageMap = (nginxDist) => {
   const configMap = {};
-
+  /*
   const mainPackageJsonFile = path.resolve(nginxDist, 'package.json');
   if (existsSync(mainPackageJsonFile)) {
     const mainPackageInfo = require(mainPackageJsonFile);
@@ -179,6 +179,7 @@ const getCurrentPackageMap = (nginxDist) => {
       }
     }
   }
+  */
 
   const mainPackagesDir = path.resolve(nginxDist, 'packages');
   if (existsSync(mainPackagesDir)) {
