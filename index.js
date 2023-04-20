@@ -54,7 +54,7 @@ const getIp = () => {
   const networkInterfaces = os.networkInterfaces();
 
   const allInterNames = Object.keys(networkInterfaces);
-  let currentInterName = allInterNames.find(k => k === 'eth0');
+  let currentInterName = allInterNames.find(k => (k === 'eth0' || k === 'en0'));
 
   if (!currentInterName) {
     currentInterName = allInterNames[0]

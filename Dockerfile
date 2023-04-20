@@ -20,7 +20,8 @@ ENV NGINX_DIST /usr/share/nginx/html
 ENV NGINX_CONFIG_D_DIR /etc/nginx/conf.d/micro-config.d
 ENV S_REDIS_HOST redis
 ENV S_REDIS_PORT 6379
-ENV USE_REDIS false
+ENV USE_REDIS none
+# ENV USE_REDIS false
 ENV S_NAMESPACE hzero_front_
 
 ADD "docker/nginx.conf" "/etc/nginx/nginx.conf"
