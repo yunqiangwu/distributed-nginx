@@ -1,19 +1,32 @@
-FROM node:latest
+
+FROM node:16-slim as node-installer
+
+
+ENV NODE_ENV=production
+WORKDIR /usr/src/app
+COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
+RUN npm install --production --silent --registry https://registry.npmmirror.com/
+
+FROM node:16-slim
 
 RUN echo deb http://mirrors.ustc.edu.cn/debian buster main contrib non-free > /etc/apt/sources.list && \
   echo deb http://mirrors.ustc.edu.cn/debian buster-backports main contrib non-free >> /etc/apt/sources.list && \
   echo deb http://mirrors.ustc.edu.cn/debian buster-proposed-updates main contrib non-free >> /etc/apt/sources.list &&\
   echo deb http://mirrors.ustc.edu.cn/debian-security buster/updates main contrib non-free >> /etc/apt/sources.list
 
-RUN apt-get update -y && apt-get install nginx -y && apt-get remove --purge --auto-remove -y && apt-get clean
+RUN apt-get update -y && apt-get install vim curl nginx -y && apt-get remove --purge --auto-remove -y && apt-get clean
 
-ENV NODE_ENV=production
+COPY --from=node-installer /usr/src/app/node_modules /usr/src/app/node_modules
+
 WORKDIR /usr/src/app
-COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
-RUN npm install --production --silent --registry https://registry.npmmirror.com/ && mv node_modules ../
+
+# --chown=node:node
+
 COPY index.js index.js
+
 EXPOSE 80
-RUN chown -R node /usr/src/app
+
+# RUN chown -R node /usr/src/app
 # USER node
 
 ENV NGINX_DIST /usr/share/nginx/html

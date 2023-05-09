@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# docker build . -t jonneywu/distributed-nginx:1
+# docker build . -t registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
 
 # docker run -d -p 6379:6379 -ti --name redis redis
 

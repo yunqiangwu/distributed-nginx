@@ -36,3 +36,5 @@ fi
 nginx
 
 exec "$@"
+
+nginx -s stop

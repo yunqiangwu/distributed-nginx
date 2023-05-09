@@ -623,6 +623,21 @@ if (process.env.USE_REDIS === 'true') {
 } else {
   if (process.env.USE_REDIS === 'none') {
     (async () => {
+
+      const clean = () => {
+        process.exit();
+      }
+      process.on('SIGTERM', () => {
+        clean();
+      });
+    
+      process.on('SIGINT', () => {
+        clean();
+      });
+      process.on('exit', () => {
+        clean();
+      });
+    
       while(true) {
         await delay(24 * 60 * 60 * 1000);
       }

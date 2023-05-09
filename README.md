@@ -51,7 +51,7 @@ cd project-dit
 - Dockerfile
 
 ```
-FROM jonneywu/distributed-nginx:1
+FROM registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
 COPY dist /usr/share/nginx/html
 ```
 
@@ -95,6 +95,7 @@ docker run -p 80:80 -ti --rm --name nginx-test nginx-test:1
 
   含义：是否使用 redis 协议， 默认使用 mdns 协议 
   如果设置为 none 则关闭自动更新 微前端配置和代理
+  如果设置为 mdns 则使用 mdns 协议自动更新 微前端配置和代理
   默认值： false
 
 ### S_REDIS_HOST
