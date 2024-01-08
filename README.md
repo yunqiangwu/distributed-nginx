@@ -33,11 +33,11 @@ yarn run test
 
 从第一个微前端模块访问第二个微前端主模块的页面
 
-- http://localhost/packages/main2/package.json
-
+- http://localhost/packages/main2/  package.json
+<!-- 
 从第一个微前端模块访问第三个未暴露访问端口的微前端主模块的页面
 
-- http://localhost/packages/main3/package.json
+- http://localhost/packages/main3/package.json -->
 
 ## 使用
 

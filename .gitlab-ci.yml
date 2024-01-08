@@ -11,7 +11,8 @@ docker-build:
     - docker build . -t ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:0.0.1
     # - docker push ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA}
     # - docker tag ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA} ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:0.0.1
-    - docker push ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:0.0.1
+    - docker push ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:1.24.0
+    # - docker push ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:0.0.1
   only:
     - master
 #   tags:

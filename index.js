@@ -209,10 +209,10 @@ const getCurrentPackageMap = (nginxDist) => {
 
 const nginxReload = throttle((cb) => {
   if(process.env.NODE_DEBUG==='true') {
-    // console.log(`exec('nginx -s reload')`);
+    // console.log(`exec('nginx -p /etc/nginx/ -c nginx.conf -s reload')`);
     return;
   }
-  exec('nginx -s reload', (err, res) => {
+  exec('nginx -p /etc/nginx/ -c nginx.conf -s reload', (err, res) => {
     if (err) {
       console.error(err);
     }

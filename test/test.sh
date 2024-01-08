@@ -6,3 +6,10 @@
 
 docker run --rm -ti --name node-test -v `pwd`:/app node:latest node /app/index.js
 
+docker run --rm -ti --name node-test -v `pwd`:/app node:latest bash
+docker run --rm -ti --name node-test2 -v `pwd`:/app jonneywu/distributed-nginx:1 bash
+
+
+registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1
+
+docker run --rm -ti --name node-test2 -v `pwd`:/app registry.hand-china.com/hzero-fe-public/distributed-nginx:0.0.1 bash

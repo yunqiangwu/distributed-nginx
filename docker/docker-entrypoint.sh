@@ -33,7 +33,7 @@ else
     echo >&3 "$0: No files found in /docker-entrypoint.d/, skipping configuration"
 fi
 
-nginx
+nginx -p /etc/nginx/ -c nginx.conf
 
 exec "$@"
 
