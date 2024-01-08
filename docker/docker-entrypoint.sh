@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim:sw=4:ts=4:et
 
 set -e
@@ -18,7 +18,7 @@ if /usr/bin/find "/docker-entrypoint.d/" -mindepth 1 -maxdepth 1 -type f -print 
             *.sh)
                 if [ -x "$f" ]; then
                     echo >&3 "$0: Launching $f";
-                    "$f"
+                    . "$f"
                 else
                     # warn on shell scripts without exec bit
                     echo >&3 "$0: Ignoring $f, not executable";
