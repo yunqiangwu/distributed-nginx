@@ -16,13 +16,8 @@ if /usr/bin/find "/docker-entrypoint.d/" -mindepth 1 -maxdepth 1 -type f -print 
     find "/docker-entrypoint.d/" -follow -type f -print | sort -V | while read -r f; do
         case "$f" in
             *.sh)
-                if [ -x "$f" ]; then
-                    echo >&3 "$0: Launching $f";
-                    . "$f"
-                else
-                    # warn on shell scripts without exec bit
-                    echo >&3 "$0: Ignoring $f, not executable";
-                fi
+                echo >&3 "$0: Launching $f";
+                . "$f"
                 ;;
             *) echo >&3 "$0: Ignoring $f";;
         esac
