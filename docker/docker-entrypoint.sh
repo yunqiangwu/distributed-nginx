@@ -32,4 +32,4 @@ nginx -p /etc/nginx/ -c nginx.conf
 
 exec "$@"
 
-nginx -s stop
+nginx -p /etc/nginx/ -c nginx.conf -s stop
