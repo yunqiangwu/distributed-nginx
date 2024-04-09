@@ -27,7 +27,7 @@ RUN NGINX_VERSION=1.24.0 && \
     wget https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz && \
     tar -zxvf nginx-${NGINX_VERSION}.tar.gz && \
     cd nginx-${NGINX_VERSION} && \
-    ./configure --conf-path=nginx.conf && \
+    ./configure --prefix=/etc/nginx --conf-path=nginx.conf && \
     make
 
 
