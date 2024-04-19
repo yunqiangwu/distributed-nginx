@@ -6,10 +6,10 @@
   "scripts": {
     "start": "NODE_DEBUG=true node index.js",
     "start2": "S_REDIS_HOST=127.0.0.1 USE_REDIS=true S_NO_CHANGE_MICRO=true NODE_DEBUG=true node index.js",
-    "build": "docker build . -t registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:0.0.1",
+    "build": "docker build . -t registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:0.0.2",
     "test": "npm run build && lerna exec -- . ./test.sh",
     "test2": "npm run build && lerna exec -- . ./test-redis.sh",
-    "test3": "docker run -ti -p 80:80 --rm registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:0.0.1"
+    "test3": "docker run -ti -p 80:80 --rm registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:0.0.2"
   },
   "dependencies": {
     "multicast-dns": "^7.2.4",

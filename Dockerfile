@@ -7,16 +7,16 @@ WORKDIR /usr/src/app
 COPY ["package.json", "package-lock.json*", "npm-shrinkwrap.json*", "./"]
 RUN npm install --production --silent --registry https://registry.npmmirror.com/
 
-FROM node:16-slim
+# FROM node:16-slim
 # 第一阶段: 使用官方 Node 镜像作为构建
-FROM node:latest as builder
+FROM node:16 as builder
 
 # 设置工作目录
 WORKDIR /app
 
 # 安装构建依赖
 RUN apt-get update && \
-    apt-get install -y build-essential && \
+    apt-get install -y wget build-essential && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -30,18 +30,16 @@ RUN NGINX_VERSION=1.24.0 && \
     ./configure --prefix=/etc/nginx --conf-path=nginx.conf && \
     make
 
+FROM node:16
 
-FROM node:latest
+# RUN echo deb http://mirrors.ustc.edu.cn/debian buster main contrib non-free > /etc/apt/sources.list && \
+#   echo deb http://mirrors.ustc.edu.cn/debian buster-backports main contrib non-free >> /etc/apt/sources.list && \
+#   echo deb http://mirrors.ustc.edu.cn/debian buster-proposed-updates main contrib non-free >> /etc/apt/sources.list &&\
+#   echo deb http://mirrors.ustc.edu.cn/debian-security buster/updates main contrib non-free >> /etc/apt/sources.list
 
-# 将 nginx 的默认配置文件替换为你自己的配置文件
-# COPY nginx.conf /usr/local/nginx/conf/nginx.conf
+# RUN echo aaa
 
-RUN echo deb http://mirrors.ustc.edu.cn/debian buster main contrib non-free > /etc/apt/sources.list && \
-  echo deb http://mirrors.ustc.edu.cn/debian buster-backports main contrib non-free >> /etc/apt/sources.list && \
-  echo deb http://mirrors.ustc.edu.cn/debian buster-proposed-updates main contrib non-free >> /etc/apt/sources.list &&\
-  echo deb http://mirrors.ustc.edu.cn/debian-security buster/updates main contrib non-free >> /etc/apt/sources.list
-
-RUN apt-get update -y && apt-get install curl vim -y && apt-get remove --purge --auto-remove -y && apt-get clean
+RUN apt-get update -y && apt-get install curl wget vim -y && apt-get remove --purge --auto-remove -y && apt-get clean
 
 COPY --from=node-installer /usr/src/app/node_modules /usr/src/app/node_modules
 

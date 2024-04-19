@@ -17,7 +17,7 @@ image/vnd.wap.wbmp wbmp;
 image/webp webp;
 image/x-icon ico cur;
 image/x-jng jng;
-# JavaScript
+# js
 application/javascript mjs js;
 application/json json;
 # Manifest files
