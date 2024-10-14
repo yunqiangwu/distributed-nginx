@@ -5,6 +5,7 @@ docker-build:
   image: docker.io/library/docker:latest
   stage: docker-build
   script:
+    export DOCKER_IMAGE_VERSION=test
     # - export C7N_COMMIT_SHA=$(echo ${CI_COMMIT_SHA:-abcdefghijklmhopqrst} | awk '{print substr($1,1,8)}')
     - docker login ${MY_DOCKER_REGISTRY} --password ${DOCKER_PASSWORD} --username ${DOCKER_USER}
     # - docker build . -t ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:${C7N_COMMIT_SHA}
