@@ -16,5 +16,6 @@ docker-build:
     # - docker push ${MY_DOCKER_REGISTRY}/hzero-fe-public/distributed-nginx:0.0.1
   only:
     - master
+    - test
 #   tags:
 #     - docker
