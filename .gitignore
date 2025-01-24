@@ -3,3 +3,5 @@ test/dist1/packages/microConfig.json
 test/dist*/packages/microConfig.json
 test/nginx-config
 _currentPackageMap.json
+
+/test-public
