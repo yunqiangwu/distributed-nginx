@@ -3,6 +3,8 @@ docker build . -t hzero-fe-public/distributed-nginx:1.24.0
 
 docker run  -ti --rm --name test --entrypoint '' hzero-fe-public/distributed-nginx:1.24.0 bash
 
+docker run  -ti -d --name redis -p 6379:6379 redis
+
 docker build . -t registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:test
 
 docker buildx build -t registry.choerodon.com.cn/hzero-fe-public/distributed-nginx:arm --platform linux/arm64 . --load
